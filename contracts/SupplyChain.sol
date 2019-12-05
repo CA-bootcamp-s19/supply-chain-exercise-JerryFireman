@@ -8,10 +8,10 @@ contract SupplyChain {
   // @dev Tracks the most recent sku number
   uint internal skuCount;
 
-  // @dev Maps sku numbers to their associated item
+  // @dev Maps sku numbers to their associated Item
   mapping (uint => Item) public items;
 
-  // @dev Represents the possible states of an item
+  // @dev Represents the possible states of an Item
   enum State { ForSale, Sold, Shipped, Received }
   State public state;
 
@@ -104,27 +104,42 @@ contract SupplyChain {
     return true;
   }
 
-  /* Add a keyword so the function can be paid. This function should transfer money
-    to the seller, set the buyer as the person who called this transaction, and set the state
-    to Sold. Be careful, this function should use 3 modifiers to check if the item is for sale,
-    if the buyer paid enough, and check the value after the function is called to make sure the buyer is
-    refunded any excess ether sent. Remember to call the event associated with this function!*/
-
-  function buyItem(uint sku)
+  // @dev Called by the buyer to purchase an item
+  // @param _sku Sku number of item being purchased
+  function buyItem(uint _sku)
     public
-  {}
+    payable
+    forSale(_sku)
+    paidEnough(_sku)
+    checkValue(_sku)
+  {
+    items[_sku].buyer = msg.sender;
+    items[_sku].state = State.Sold;
+    items[_sku].seller.transfer(items[_sku].price);
+    emit LogSold(_sku);
+  }
 
-  /* Add 2 modifiers to check if the item is sold already, and that the person calling this function
-  is the seller. Change the state of the item to shipped. Remember to call the event associated with this function!*/
-  function shipItem(uint sku)
+  // @dev Called by the seller to ship an item
+  // @param _sku Sku number of item being purchased
+  function shipItem(uint _sku)
     public
-  {}
+    sold(_sku)
+    verifyCaller(items[_sku].seller)
+  {
+    items[_sku].state = State.Shipped;
+    emit LogShipped(_sku);
+  }
 
-  /* Add 2 modifiers to check if the item is shipped already, and that the person calling this function
-  is the buyer. Change the state of the item to received. Remember to call the event associated with this function!*/
-  function receiveItem(uint sku)
+  // @dev Called by the buyerer to receive an item
+  // @param _sku Sku number of item being received
+  function receiveItem(uint _sku)
     public
-  {}
+    shipped(_sku)
+    verifyCaller(items[_sku].buyer)
+  {
+    items[_sku].state = State.Received;
+    emit LogReceived(_sku);
+  }
 
   // @dev This function included only for use in running tests
   function fetchItem(uint _sku) public view returns (string memory name, uint sku, uint price, uint state, address seller, address buyer) {
