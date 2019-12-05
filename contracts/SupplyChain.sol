@@ -1,73 +1,103 @@
-/*
-    This exercise has been updated to use Solidity version 0.5
-    Breaking changes from 0.4 to 0.5 can be found here: 
-    https://solidity.readthedocs.io/en/v0.5.0/050-breaking-changes.html
-*/
-
 pragma solidity ^0.5.0;
 
 contract SupplyChain {
 
-  /* set owner */
-  address owner;
+  // @dev Owner of the contract
+  address public owner;
 
-  /* Add a variable called skuCount to track the most recent sku # */
+  // @dev Tracks the most recent sku number
+  uint internal skuCount;
 
-  /* Add a line that creates a public mapping that maps the SKU (a number) to an Item.
-     Call this mappings items
-  */
+  // @dev Maps sku numbers to their associated item
+  mapping (uint => Item) public items;
 
-  /* Add a line that creates an enum called State. This should have 4 states
-    ForSale
-    Sold
-    Shipped
-    Received
-    (declaring them in this order is important for testing)
-  */
+  // @dev Represents the possible states of an item
+  enum State { ForSale, Sold, Shipped, Received }
+  State public state;
 
-  /* Create a struct named Item.
-    Here, add a name, sku, price, state, seller, and buyer
-    We've left you to figure out what the appropriate types are,
-    if you need help you can ask around :)
-    Be sure to add "payable" to addresses that will be handling value transfer
-  */
+  // @dev Goods handled by the supply chain
+  struct Item {
+    string name;
+    uint sku;
+    uint price;
+    State state;
+    address payable seller;
+    address payable buyer;
+  }
 
-  /* Create 4 events with the same name as each possible State (see above)
-    Prefix each event with "Log" for clarity, so the forSale event will be called "LogForSale"
-    Each event should accept one argument, the sku */
+  // @dev Events correspond to each possible state
+  event LogForSale(uint sku);
+  event LogSold(uint sku);
+  event LogShipped(uint sku);
+  event LogReceived(uint sku);
 
-/* Create a modifer that checks if the msg.sender is the owner of the contract */
+  // @dev Checks if the msg.sender is the owner of the contract
+  modifier onlyOwner () {
+    require(msg.sender == owner, "Message sender is not owner of contract");
+     _;
+  }
 
-  modifier verifyCaller (address _address) { require (msg.sender == _address); _;}
+  // @dev Checks if the message sender is a specfic address
+  // @param _address The address the message is supposed to come from
+  modifier verifyCaller (address _address) {
+    require (msg.sender == _address, "Message sender is not required address");
+    _;
+  }
 
-  modifier paidEnough(uint _price) { require(msg.value >= _price); _;}
+  // @dev Checks if the customer sent enough to pay for items
+  // @param _price The price of the item
+  modifier paidEnough(uint _price) {
+    require(msg.value >= _price, "the customer did not send enough to pay for the item");
+     _;
+  }
+    
+  // @dev Refunds buyers that overpay for items
+  // @param _sku Sku number of purchased item
   modifier checkValue(uint _sku) {
-    //refund them after pay for item (why it is before, _ checks for logic before func)
     _;
     uint _price = items[_sku].price;
     uint amountToRefund = msg.value - _price;
     items[_sku].buyer.transfer(amountToRefund);
   }
 
-  /* For each of the following modifiers, use what you learned about modifiers
-   to give them functionality. For example, the forSale modifier should require
-   that the item with the given sku has the state ForSale. 
-   Note that the uninitialized Item.State is 0, which is also the index of the ForSale value,
-   so checking that Item.State == ForSale is not sufficient to check that an Item is for sale.
-   Hint: What item properties will be non-zero when an Item has been added?
-   */
-  modifier forSale
-  modifier sold
-  modifier shipped
-  modifier received
-
-
-  constructor() public {
-    /* Here, set the owner as the person who instantiated the contract
-       and set your skuCount to 0. */
+  // @dev Checks that state of item is ForSale
+  // @param _sku Sku number of item to be checked
+  modifier forSale (uint _sku) {
+    require(items[_sku].state == State.ForSale && items[_sku].price != 0, "Item is not for sale");
+    _;
   }
 
-  function addItem(string memory _name, uint _price) public returns(bool){
+  // @dev Checks that state of item is Sold
+  // @param _sku Sku number of item to be checked
+  modifier sold (uint _sku) {
+    require(items[_sku].state == State.Sold , "Item is not sold");
+    _;
+  }
+
+  // @dev Checks that state of item is Shipped
+  // @param _sku Sku number of item to be checked
+  modifier shipped (uint _sku) {
+    require(items[_sku].state == State.Shipped , "Item is not shipped");
+    _;
+  }
+
+  // @dev Checks that state of item is Received
+  // @param _sku Sku number of item to be checked
+  modifier received (uint _sku) {
+    require(items[_sku].state == State.Received , "Item is not received");
+    _;
+  }
+
+  // @dev Sets owner to the address that instantiated the contract
+  constructor() public {
+    owner = msg.sender;
+    skuCount = 0;
+  }
+
+  // @dev Adds item to goods for sale
+  // @param _name Name of item
+  // @param _price Price of item
+  function addItem(string memory _name, uint _price) public returns(bool) {
     emit LogForSale(skuCount);
     items[skuCount] = Item({name: _name, sku: skuCount, price: _price, state: State.ForSale, seller: msg.sender, buyer: address(0)});
     skuCount = skuCount + 1;
@@ -96,7 +126,7 @@ contract SupplyChain {
     public
   {}
 
-  /* We have these functions completed so we can run tests, just ignore it :) */
+  // @dev This function included only for use in running tests
   function fetchItem(uint _sku) public view returns (string memory name, uint sku, uint price, uint state, address seller, address buyer) {
     name = items[_sku].name;
     sku = items[_sku].sku;
@@ -106,5 +136,4 @@ contract SupplyChain {
     buyer = items[_sku].buyer;
     return (name, sku, price, state, seller, buyer);
   }
-
 }
